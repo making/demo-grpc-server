@@ -2,37 +2,40 @@ package com.example;
 
 import com.example.proto.HelloRequest;
 import com.example.proto.HelloResponse;
-import com.example.proto.HelloServiceGrpc;
-import io.grpc.stub.StreamObserver;
+import com.example.proto.ReactorHelloServiceGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
-public class HelloService extends HelloServiceGrpc.HelloServiceImplBase {
+public class HelloService extends ReactorHelloServiceGrpc.HelloServiceImplBase {
 
     private final Logger log = LoggerFactory.getLogger(HelloService.class);
 
     @Override
-    public void sayHello(HelloRequest request, StreamObserver<HelloResponse> responseObserver) {
+    public Mono<HelloResponse> sayHello(Mono<HelloRequest> request) {
         log.info("sayHello");
-        HelloResponse response = HelloResponse.newBuilder()
-            .setReply(String.format("Hello %s!", request.getGreeting()))
-            .build();
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
+        return request
+            .map(req -> HelloResponse.newBuilder().setReply(String.format("Hello %s!", req.getGreeting())).build());
     }
 
+    // 以下でも可
+    //@Override
+    //public Mono<HelloResponse> sayHello(HelloRequest request) {
+    //	log.info("sayHello");
+    //	return Mono
+    //		.just(HelloResponse.newBuilder().setReply(String.format("Hello %s!", request.getGreeting())).build());
+    //}
+
     @Override
-    public void lotsOfReplies(HelloRequest request, StreamObserver<HelloResponse> responseObserver) {
+    public Flux<HelloResponse> lotsOfReplies(Mono<HelloRequest> request) {
         log.info("lotsOfReplies");
-        for (int i = 0; i < 10; i++) {
-            HelloResponse response = HelloResponse.newBuilder()
-                .setReply(String.format("[%05d] Hello %s!", i, request.getGreeting()))
-                .build();
-            responseObserver.onNext(response);
-        }
-        responseObserver.onCompleted();
+        return request.flatMapMany(req -> Flux.range(0, 10)
+            .map(i -> HelloResponse.newBuilder()
+                .setReply(String.format("[%05d] Hello %s!", i, req.getGreeting()))
+                .build()));
     }
 
 }
